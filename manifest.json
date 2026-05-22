@@ -1,0 +1,32 @@
+{
+  "manifest_version": 2,
+  "name": "WA Privacy Blur",
+  "version": "1.0",
+  "description": "Blurs WhatsApp Web names, previews, avatars, and messages. Hover to reveal.",
+  "icons": {
+    "48": "icon.svg",
+    "96": "icon.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://web.whatsapp.com/*"],
+      "js": ["blur.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "wa-privacy-blur@jamelwa.com",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  },
+  "permissions": [
+    "*://web.whatsapp.com/*"
+  ]
+}
