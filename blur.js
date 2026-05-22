@@ -17,7 +17,7 @@
   const defaults = {
     sidebarName: true, sidebarPreview: true, sidebarAvatar: true,
     headerName: true, headerAvatar: true,
-    msgText: true, msgSenderName: true, msgMedia: true, chatAvatar: true, drawer: true,
+    msgText: true, msgMedia: true, drawer: true,
   };
   let opts = { ...defaults };
   let pending = false;
@@ -94,25 +94,10 @@
     return br >= Math.min(w, h) * 0.4;
   }
 
-  function isSmallRoundAvatar(el) {
-    const w = el.offsetWidth, h = el.offsetHeight;
-    if (w < 8 || w > 80 || h < 8 || h > 80) return false;
-    const br = parseFloat(getComputedStyle(el).borderRadius) || 0;
-    return br >= Math.min(w, h) * 0.4;
-  }
-
   function findAvatars(el) {
     const out = [];
     for (const c of el.querySelectorAll('*')) {
       if (isAvatar(c)) out.push(c);
-    }
-    return out;
-  }
-
-  function findSmallRoundAvatars(el) {
-    const out = [];
-    for (const c of el.querySelectorAll('*')) {
-      if (isSmallRoundAvatar(c)) out.push(c);
     }
     return out;
   }
@@ -124,24 +109,6 @@
     });
   }
 
-  // Spans that carry their own visible text (no descendant span also has text).
-  // Used by the sidebar so name vs. preview can be toggled independently —
-  // the first leaf text span in a row is the contact/group name, the rest are
-  // preview/metadata (last message snippet, time, unread badge, …).
-  function leafTextSpans(container) {
-    const all = Array.from(container.querySelectorAll('span'))
-      .filter(s => s.textContent.trim());
-    const ancestors = new Set();
-    for (const s of all) {
-      let p = s.parentElement;
-      while (p && p !== container) {
-        if (p.tagName === 'SPAN') ancestors.add(p);
-        p = p.parentElement;
-      }
-    }
-    return all.filter(s => !ancestors.has(s));
-  }
-
   function scan() {
     // ══════════════════════════════════════════════
     // SIDEBAR — chat rows
@@ -149,15 +116,7 @@
     const side = document.querySelector('#pane-side');
     if (side) {
       side.querySelectorAll('[role="listitem"], [role="row"], [data-testid="cell-frame-container"], [aria-selected]').forEach(row => {
-        if (opts.sidebarName || opts.sidebarPreview) {
-          const spans = leafTextSpans(row);
-          if (spans.length) {
-            if (opts.sidebarName) mark(spans[0]);
-            if (opts.sidebarPreview) {
-              for (let i = 1; i < spans.length; i++) mark(spans[i]);
-            }
-          }
-        }
+        if (opts.sidebarName || opts.sidebarPreview) blurTextSpans(row);
         if (opts.sidebarAvatar) findAvatars(row).forEach(av => mark(av, 'av'));
         hookHover(row);
       });
@@ -204,46 +163,33 @@
                    || document.querySelector('#main [role="application"]')
                    || document.querySelector('#main');
     if (chatPanel) {
-      // Group/profile avatars in the open chat often live as siblings of the
-      // bubble. Keep them separate from message media so config can toggle each.
-      if (opts.chatAvatar) {
-        findSmallRoundAvatars(chatPanel).forEach(av => {
-          mark(av, 'av');
-          const row = av.closest('[role="row"]') || av.closest('[data-testid="msg-container"]') || av.parentElement;
-          if (row) hookHover(row);
-        });
-      }
+      // Group sender avatars often live as siblings of the bubble inside the
+      // row. Blur every raster image in the panel so they don't slip through.
+      if (opts.msgMedia) chatPanel.querySelectorAll('img, canvas, video').forEach(m => mark(m, 'av'));
 
       chatPanel.querySelectorAll('[data-testid="msg-container"], div[class*="message-in"], div[class*="message-out"]').forEach(bubble => {
-        // Sender names and message body can be toggled independently.
-        const textSpans = leafTextSpans(bubble).filter(s => s.matches('[dir], [data-testid="author"]'));
-        if (textSpans.length > 1) {
-          if (opts.msgSenderName) mark(textSpans[0]);
-          if (opts.msgText) {
-            for (let i = 1; i < textSpans.length; i++) mark(textSpans[i]);
-          }
-        } else if (opts.msgText && textSpans.length === 1) {
-          mark(textSpans[0]);
+        // Text spans in the bubble (sender name + body).
+        if (opts.msgText) {
+          bubble.querySelectorAll('span[dir]').forEach(s => {
+            if (s.textContent.trim()) mark(s);
+          });
         }
         // Background-image media (stickers, some attachments).
         if (opts.msgMedia) {
-          bubble.querySelectorAll('img, canvas, video').forEach(m => {
-            if (!isSmallRoundAvatar(m)) mark(m, 'av');
-          });
           bubble.querySelectorAll('*').forEach(el => {
             if (['IMG', 'VIDEO', 'CANVAS', 'SVG'].includes(el.tagName)) return;
             const bg = getComputedStyle(el).backgroundImage;
             if (bg && bg !== 'none' && bg.includes('url')) mark(el, 'av');
           });
         }
-        if (opts.msgText || opts.msgSenderName || opts.msgMedia || opts.chatAvatar) hookHover(bubble);
+        if (opts.msgText || opts.msgMedia) hookHover(bubble);
       });
     }
 
     // ══════════════════════════════════════════════
     // GROUP SENDER NAMES (inside bubbles)
     // ══════════════════════════════════════════════
-    if (opts.msgSenderName) document.querySelectorAll('[data-testid="author"]').forEach(el => mark(el));
+    if (opts.msgText) document.querySelectorAll('[data-testid="author"]').forEach(el => mark(el));
   }
 
   scan();

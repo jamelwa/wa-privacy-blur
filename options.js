@@ -5,9 +5,7 @@ const defaults = {
   headerName: true,
   headerAvatar: true,
   msgText: true,
-  msgSenderName: true,
   msgMedia: true,
-  chatAvatar: true,
   drawer: true,
 };
 
@@ -18,9 +16,7 @@ const ids = {
   headerName: 'optHeaderName',
   headerAvatar: 'optHeaderAvatar',
   msgText: 'optMsgText',
-  msgSenderName: 'optMsgSenderName',
   msgMedia: 'optMsgMedia',
-  chatAvatar: 'optChatAvatar',
   drawer: 'optDrawer',
 };
 
