@@ -2,3 +2,5 @@ web-ext-artifacts/
 node_modules/
 *.zip
 .DS_Store
+demo/demo-raw.mp4
+demo/palette.png

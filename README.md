@@ -1,121 +1,66 @@
+<p align="center">
+  <img src="demo/demo.gif" alt="WA Privacy Blur Demo" width="800">
+</p>
+
 # WA Privacy Blur
 
-Browser extension that blurs WhatsApp Web content for privacy — hover to reveal.
+Browser extension that blurs WhatsApp Web content for privacy — hover to reveal. Protects your chats from shoulder-surfing in cafes, offices, and shared spaces.
 
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Firefox](https://img.shields.io/badge/firefox-%3E%3D140-orange)
+<p align="center">
+  <a href="https://addons.mozilla.org/firefox/addon/wa-privacy-blur/"><img src="https://img.shields.io/badge/Firefox-Under_Review-orange?logo=firefox" alt="Firefox Add-on"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Chrome-Under_Review-blue?logo=google-chrome" alt="Chrome Extension"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+  <img src="https://img.shields.io/badge/Firefox-%E2%89%A5140-orange" alt="Firefox >=140">
+  <img src="https://img.shields.io/badge/zero_data_collection-✓-success" alt="Zero data collection">
+</p>
 
-## What it does
+## Features
 
-Automatically blurs sensitive content on WhatsApp Web to protect your screen from shoulder-surfing:
+Automatically blurs sensitive content on WhatsApp Web:
 
-- **Chat list** — contact/group names, last message previews, avatars
-- **Header** — contact/group name and profile picture
-- **Profile drawer** — name, about, phone number
-- **Message bubbles** — text content and media
-- **Group chat** — sender names
+| Area | What gets blurred |
+|---|---|
+| **Chat list** | Contact/group names, last message previews, avatars, unread badges |
+| **Header** | Contact/group name, profile picture |
+| **Messages** | Text content, photos, stickers, videos |
+| **Group chats** | Sender names in each bubble |
+| **Profile drawer** | Name, about, phone number |
 
-Everything stays blurred until you hover your mouse over it — then it smoothly reveals. Move away and it blurs again.
+Everything stays blurred until you hover — then smoothly reveals. Move away and it blurs again.
+
+**Options page** (v1.2+): toggle individual blur categories — sidebar name, preview, avatar; header name, avatar; message text, media, sender names; group/profile info.
 
 ## Install
 
 ### Firefox
 
-1. Download the [latest `.xpi` or `.zip` from Releases](https://github.com/jamelwa/wa-privacy-blur/releases)
-2. Go to `about:addons` → gear icon → "Install Add-on From File"
-3. Select the downloaded file
+[![Firefox Add-on](https://img.shields.io/badge/Firefox-Add--on-orange?logo=firefox)](https://addons.mozilla.org/firefox/addon/wa-privacy-blur/) — pending review
 
-Or install from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/wa-privacy-blur/) (coming soon).
+Manual install from [Releases](https://github.com/jamelwa/wa-privacy-blur/releases):
+1. Download the `.xpi` or `.zip`
+2. Go to `about:addons` → gear icon → "Install Add-on From File"
+3. Select the file
 
 ### Chrome / Edge / Brave
 
-Not yet published. To load manually:
+[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web_Store-blue?logo=google-chrome)](#) — pending review
+
+Manual install (Developer mode):
 1. Clone this repo
-2. Go to `chrome://extensions` → "Load unpacked"
+2. `chrome://extensions` → "Load unpacked"
 3. Select the extension folder
 
-> **Note:** Chrome requires Manifest V3. This extension currently uses V2 for Firefox compatibility. A V3 manifest will be added.
+## How It Works
 
-## Source Code
-
-```
-wa-privacy-blur/
-├── manifest.json    # Extension manifest (Manifest V2)
-├── blur.js          # Content script — DOM blur/hover logic
-├── icon.svg         # Extension icon
-├── build.sh         # Build script
-├── README.md
-├── LICENSE
-└── .gitignore
-```
-
-The extension has no preprocessors, bundlers, or transpilers. The source code IS the packaged code. `blur.js` is injected into `web.whatsapp.com` via `manifest.json` and runs directly in the browser — no build step required to run the extension.
-
-## Build (for distribution)
-
-### Prerequisites
-
-| Requirement | Version      | Install                            |
-|-------------|-------------|------------------------------------|
-| Node.js     | ≥ 16        | https://nodejs.org                 |
-| npm         | ≥ 8         | Bundled with Node.js               |
-| web-ext     | ≥ 7         | `npm install -g web-ext`           |
-
-**Operating system:** Any (Linux, macOS, Windows). `web-ext` is cross-platform.
-
-### Step-by-step
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/jamelwa/wa-privacy-blur.git
-   cd wa-privacy-blur
-   ```
-
-2. **Install web-ext** (one-time)
-   ```bash
-   npm install -g web-ext
-   ```
-
-3. **Lint** — validates `manifest.json` for Firefox compliance
-   ```bash
-   web-ext lint
-   ```
-   Expected: 0 errors, 0 warnings.
-
-4. **Build** — produces a `.zip` ready for AMO submission
-   ```bash
-   ./build.sh
-   ```
-   Or manually:
-   ```bash
-   web-ext build --overwrite-dest
-   ```
-
-5. **Output**
-   ```
-   web-ext-artifacts/wa_privacy_blur-1.0.zip
-   ```
-
-### Build script
-
-`build.sh` automates lint + build:
-
-```bash
-#!/usr/bin/env bash
-set -e
-echo "=== Linting ==="
-web-ext lint
-echo ""
-echo "=== Building ==="
-web-ext build --overwrite-dest
-echo ""
-echo "=== Done ==="
-echo "Package: web-ext-artifacts/wa_privacy_blur-1.0.zip"
-```
+- Pure JS blur via `mouseenter`/`mouseleave` — CSS `filter + :hover` breaks due to stacking contexts
+- `MutationObserver` catches new elements as WhatsApp renders them
+- Per-bubble and per-row hover scopes — hovering one chat doesn't reveal others
+- Scoped DOM searches (no broad `querySelectorAll('*')`)
+- Options stored in `chrome.storage.sync`, hot-reloads without page refresh
 
 ## Privacy
 
-This extension does **not** collect, transmit, or store any personal data. All blur/hover logic runs locally in your browser. No analytics, no tracking, no accounts.
+This extension does **not** collect, transmit, or store any personal data. All logic runs locally in your browser. No analytics, no tracking, no accounts.
 
 ## License
 
