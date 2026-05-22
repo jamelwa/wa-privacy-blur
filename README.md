@@ -36,14 +36,82 @@ Not yet published. To load manually:
 
 > **Note:** Chrome requires Manifest V3. This extension currently uses V2 for Firefox compatibility. A V3 manifest will be added.
 
-## Build
+## Source Code
 
-```bash
-npm install -g web-ext
-web-ext build
+```
+wa-privacy-blur/
+├── manifest.json    # Extension manifest (Manifest V2)
+├── blur.js          # Content script — DOM blur/hover logic
+├── icon.svg         # Extension icon
+├── build.sh         # Build script
+├── README.md
+├── LICENSE
+└── .gitignore
 ```
 
-Output: `web-ext-artifacts/wa_privacy_blur-1.0.zip`
+The extension has no preprocessors, bundlers, or transpilers. The source code IS the packaged code. `blur.js` is injected into `web.whatsapp.com` via `manifest.json` and runs directly in the browser — no build step required to run the extension.
+
+## Build (for distribution)
+
+### Prerequisites
+
+| Requirement | Version      | Install                            |
+|-------------|-------------|------------------------------------|
+| Node.js     | ≥ 16        | https://nodejs.org                 |
+| npm         | ≥ 8         | Bundled with Node.js               |
+| web-ext     | ≥ 7         | `npm install -g web-ext`           |
+
+**Operating system:** Any (Linux, macOS, Windows). `web-ext` is cross-platform.
+
+### Step-by-step
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/jamelwa/wa-privacy-blur.git
+   cd wa-privacy-blur
+   ```
+
+2. **Install web-ext** (one-time)
+   ```bash
+   npm install -g web-ext
+   ```
+
+3. **Lint** — validates `manifest.json` for Firefox compliance
+   ```bash
+   web-ext lint
+   ```
+   Expected: 0 errors, 0 warnings.
+
+4. **Build** — produces a `.zip` ready for AMO submission
+   ```bash
+   ./build.sh
+   ```
+   Or manually:
+   ```bash
+   web-ext build --overwrite-dest
+   ```
+
+5. **Output**
+   ```
+   web-ext-artifacts/wa_privacy_blur-1.0.zip
+   ```
+
+### Build script
+
+`build.sh` automates lint + build:
+
+```bash
+#!/usr/bin/env bash
+set -e
+echo "=== Linting ==="
+web-ext lint
+echo ""
+echo "=== Building ==="
+web-ext build --overwrite-dest
+echo ""
+echo "=== Done ==="
+echo "Package: web-ext-artifacts/wa_privacy_blur-1.0.zip"
+```
 
 ## Privacy
 
