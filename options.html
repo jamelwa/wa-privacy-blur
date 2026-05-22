@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WA Privacy Blur — Settings</title>
+  <style>
+    body { font-family: system-ui; max-width: 400px; margin: 24px auto; background: #111; color: #eee; }
+    h1 { font-size: 18px; margin-bottom: 16px; }
+    label { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: #4caf50; }
+    .section { border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; }
+    .section-title { font-size: 13px; color: #888; margin-bottom: 4px; }
+    button { margin-top: 16px; padding: 8px 20px; background: #4caf50; border: none; color: #111; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    #status { margin-top: 8px; font-size: 13px; color: #4caf50; }
+  </style>
+</head>
+<body>
+  <h1>WA Privacy Blur</h1>
+
+  <div class="section">
+    <div class="section-title">Sidebar (chat list)</div>
+    <label><input type="checkbox" id="optSidebarName"><span>Blur contact/group names</span></label>
+    <label><input type="checkbox" id="optSidebarPreview"><span>Blur last message preview</span></label>
+    <label><input type="checkbox" id="optSidebarAvatar"><span>Blur avatars</span></label>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Header (open chat)</div>
+    <label><input type="checkbox" id="optHeaderName"><span>Blur name</span></label>
+    <label><input type="checkbox" id="optHeaderAvatar"><span>Blur avatar</span></label>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Messages</div>
+    <label><input type="checkbox" id="optMsgText"><span>Blur message text</span></label>
+    <label><input type="checkbox" id="optMsgMedia"><span>Blur images/media</span></label>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Profile / Group drawer</div>
+    <label><input type="checkbox" id="optDrawer" checked><span>Blur all</span></label>
+  </div>
+
+  <button id="saveBtn">Save</button>
+  <div id="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>
