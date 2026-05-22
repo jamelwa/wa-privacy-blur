@@ -1,11 +1,12 @@
 {
   "manifest_version": 2,
   "name": "WA Privacy Blur",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Blurs WhatsApp Web names, previews, avatars, and messages. Hover to reveal.",
   "icons": {
-    "48": "icon.svg",
-    "96": "icon.svg"
+    "48": "icon-48.png",
+    "96": "icon-96.png",
+    "128": "icon-128.png"
   },
   "content_scripts": [
     {

@@ -69,7 +69,7 @@
     // ══════════════════════════════════════════════
     const side = document.querySelector('#pane-side');
     if (side) {
-      side.querySelectorAll('[role="listitem"], [role="row"], [data-testid="cell-frame-container"]').forEach(row => {
+      side.querySelectorAll('[role="listitem"], [role="row"], [data-testid="cell-frame-container"], [aria-selected]').forEach(row => {
         if (row.dataset.waRow) return;
         row.dataset.waRow = '1';
 
@@ -89,6 +89,9 @@
       hdr.dataset.waRow = '1';
       hdr.querySelectorAll('span[dir="auto"]').forEach(s => { if (s.textContent.trim()) mark(s); });
       hdr.querySelectorAll('[data-testid="conversation-info-header"]').forEach(s => { if (!s.dataset.waBlurred) mark(s); });
+      // Blur ALL img/canvas in header (not just ones passing isAvatar shape check)
+      hdr.querySelectorAll('img, canvas').forEach(m => mark(m, 'av'));
+      // Also blur avatar containers (div with background-image style)
       findAvatarsIn(hdr).forEach(av => mark(av, 'av'));
       hdr.addEventListener('mouseenter', () => unblurAll(hdr));
       hdr.addEventListener('mouseleave', () => reblurAll(hdr));
@@ -128,8 +131,14 @@
           mark(s);
         });
 
-        // Blur images/media in bubble
+        // Blur images/media in bubble (img, video, + background-image divs)
         bubble.querySelectorAll('img, video').forEach(m => mark(m, 'av'));
+        bubble.querySelectorAll('*').forEach(el => {
+          if (el.dataset.waBlurred) return;
+          if (el.tagName === 'IMG' || el.tagName === 'VIDEO') return;
+          const bg = getComputedStyle(el).backgroundImage;
+          if (bg && bg !== 'none' && bg.includes('url')) mark(el, 'av');
+        });
 
         bubble.addEventListener('mouseenter', () => unblurAll(bubble));
         bubble.addEventListener('mouseleave', () => reblurAll(bubble));
