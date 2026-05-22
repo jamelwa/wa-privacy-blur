@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "WA Privacy Blur",
+  "version": "1.0",
+  "description": "Blurs WhatsApp Web content for privacy — hover to reveal.",
+  "icons": {
+    "48": "icon.svg",
+    "96": "icon.svg",
+    "128": "icon.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://web.whatsapp.com/*"],
+      "js": ["blur.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "host_permissions": [
+    "*://web.whatsapp.com/*"
+  ]
+}
