@@ -1,0 +1,24 @@
+{
+  "name": "wa-privacy-blur-extension",
+  "version": "1.3.0",
+  "description": "Browser extension that blurs WhatsApp Web content for privacy \u2014 hover to reveal.",
+  "main": "blur.js",
+  "scripts": {
+    "test": "node test-blur.js && node test-options.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jamelwa/wa-privacy-blur.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jamelwa/wa-privacy-blur/issues"
+  },
+  "homepage": "https://github.com/jamelwa/wa-privacy-blur#readme",
+  "dependencies": {
+    "jsdom": "^24.1.3"
+  }
+}

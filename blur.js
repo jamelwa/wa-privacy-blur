@@ -1,26 +1,38 @@
 // WhatsApp Web Privacy Blur — JS-based, row/bubble-scoped
-// Blurs: chat list (names, previews, avatars), header, profile drawer,
-//        message bubbles (text + sender name), group sender names
-// Reveal: per-row (sidebar), per-section (header/drawer), per-bubble (chat)
-// Paste into browser console (F12). Reload page to disable.
+// Blurs: chat list (names, previews, avatars), header (name + avatar),
+//        profile drawer, message bubbles (text + media + sender name),
+//        group sender avatars adjacent to bubbles.
+// Reveal: per-row (sidebar), per-section (header/drawer), per-bubble (chat).
 
 (function () {
   if (window.__waBlur) {
     window.__waBlur.observer.disconnect();
+    if (window.__waBlur.interval) clearInterval(window.__waBlur.interval);
     console.log('🔄 Restarting...');
   }
 
   const BLUR_TXT = 'blur(5px)';
   const BLUR_AV = 'blur(12px)';
-  let pending = false;
-
-  // Defaults: all-on when no storage (console mode) or no prefs set
+  const hovered = new Set();
   const defaults = {
     sidebarName: true, sidebarPreview: true, sidebarAvatar: true,
     headerName: true, headerAvatar: true,
     msgText: true, msgMedia: true, drawer: true,
   };
   let opts = { ...defaults };
+  let pending = false;
+
+  function storageApi() {
+    try {
+      if (typeof browser !== 'undefined' && browser.storage && browser.storage.sync) return browser.storage;
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) return chrome.storage;
+    } catch (_) {}
+    return null;
+  }
+
+  function normalizeOpts(saved) {
+    return { ...defaults, ...(saved || {}) };
+  }
 
   function schedule() {
     if (pending) return;
@@ -28,33 +40,61 @@
     requestAnimationFrame(() => { pending = false; scan(); });
   }
 
+  function inHovered(el) {
+    for (const h of hovered) if (h === el || h.contains(el)) return true;
+    return false;
+  }
+
+  // Idempotent: re-applies if filter was stripped (reused DOM after chat switch).
+  // Skips while an ancestor is hovered so reveal-on-hover stays in effect.
   function mark(el, strength) {
-    if (el.dataset.waBlurred) return;
-    el.dataset.waBlurred = strength || 'txt';
-    el.style.filter = strength || BLUR_TXT;
+    if (inHovered(el)) return;
+    const want = strength === 'av' ? BLUR_AV : BLUR_TXT;
+    if (el.style.getPropertyValue('filter') === want) return;
+    el.dataset.waBlurred = strength === 'av' ? 'av' : 'txt';
+    el.style.setProperty('filter', want, 'important');
     el.style.transition = 'filter 0.15s ease';
   }
 
   function unblurAll(container) {
-    container.querySelectorAll('[data-wa-blurred]').forEach(el => el.style.filter = 'none');
+    if (container.dataset.waBlurred) container.style.setProperty('filter', 'none', 'important');
+    container.querySelectorAll('[data-wa-blurred]').forEach(el => el.style.setProperty('filter', 'none', 'important'));
   }
 
   function reblurAll(container) {
+    if (container.dataset.waBlurred) {
+      container.style.setProperty('filter', container.dataset.waBlurred === 'av' ? BLUR_AV : BLUR_TXT, 'important');
+    }
     container.querySelectorAll('[data-wa-blurred]').forEach(el => {
-      el.style.filter = el.dataset.waBlurred === 'av' ? BLUR_AV : BLUR_TXT;
+      el.style.setProperty('filter', el.dataset.waBlurred === 'av' ? BLUR_AV : BLUR_TXT, 'important');
     });
   }
 
+  function clearBlurAll() {
+    document.querySelectorAll('[data-wa-blurred]').forEach(el => {
+      el.style.removeProperty('filter');
+      delete el.dataset.waBlurred;
+    });
+  }
+
+  function hookHover(container) {
+    if (container.dataset.waHover) return;
+    container.dataset.waHover = '1';
+    container.addEventListener('mouseenter', () => { hovered.add(container); unblurAll(container); });
+    container.addEventListener('mouseleave', () => { hovered.delete(container); reblurAll(container); });
+  }
+
+  // Identify avatar-like elements. Tag-based for raster media; size+roundness
+  // heuristic for divs/svgs so we don't blur small navigation icons.
   function isAvatar(el) {
-    if (el.dataset.waBlurred) return false;
-    if (['IMG','CANVAS','svg','VIDEO'].includes(el.tagName)) return true;
+    if (['IMG', 'CANVAS', 'VIDEO'].includes(el.tagName)) return true;
     const w = el.offsetWidth, h = el.offsetHeight;
-    if (w < 8 || w > 72 || h < 8 || h > 72) return false;
+    if (w < 8 || w > 80 || h < 8 || h > 80) return false;
     const br = parseFloat(getComputedStyle(el).borderRadius) || 0;
     return br >= Math.min(w, h) * 0.4;
   }
 
-  function findAvatarsIn(el) {
+  function findAvatars(el) {
     const out = [];
     for (const c of el.querySelectorAll('*')) {
       if (isAvatar(c)) out.push(c);
@@ -62,11 +102,9 @@
     return out;
   }
 
-  function blurTextIn(el) {
-    el.querySelectorAll('span').forEach(s => {
-      if (s.dataset.waBlurred) return;
+  function blurTextSpans(container) {
+    container.querySelectorAll('span').forEach(s => {
       if (!s.textContent.trim()) return;
-      if (s.offsetWidth < 10 && s.offsetHeight < 10) return;
       mark(s);
     });
   }
@@ -78,154 +116,116 @@
     const side = document.querySelector('#pane-side');
     if (side) {
       side.querySelectorAll('[role="listitem"], [role="row"], [data-testid="cell-frame-container"], [aria-selected]').forEach(row => {
-        if (row.dataset.waRow) return;
-        row.dataset.waRow = '1';
-
-        if (opts.sidebarName || opts.sidebarPreview) blurTextIn(row);
-        if (opts.sidebarAvatar) findAvatarsIn(row).forEach(av => mark(av, 'av'));
-
-        row.addEventListener('mouseenter', () => unblurAll(row));
-        row.addEventListener('mouseleave', () => reblurAll(row));
+        if (opts.sidebarName || opts.sidebarPreview) blurTextSpans(row);
+        if (opts.sidebarAvatar) findAvatars(row).forEach(av => mark(av, 'av'));
+        hookHover(row);
       });
     }
 
     // ══════════════════════════════════════════════
-    // HEADER
+    // HEADER — chat name + avatar
+    // Scope to #main so the sidebar's own header isn't matched.
+    // Works without legacy data-testids; re-marks reused DOM each scan.
     // ══════════════════════════════════════════════
-    const hdr = document.querySelector('header');
-    if (hdr && !hdr.dataset.waRow) {
-      hdr.dataset.waRow = '1';
-      if (opts.headerName) {
-        hdr.querySelectorAll('span[dir="auto"]').forEach(s => { if (s.textContent.trim()) mark(s); });
-        hdr.querySelectorAll('[data-testid="conversation-info-header"]').forEach(s => { if (!s.dataset.waBlurred) mark(s); });
-      }
+    const hdr = document.querySelector('#main header')
+             || document.querySelector('header[data-testid="conversation-header"]');
+    if (hdr) {
+      // Avatars: raster media is always blurred. SVGs only via the
+      // size+roundness heuristic so navigation icons stay visible.
       if (opts.headerAvatar) {
-        hdr.querySelectorAll('img, canvas').forEach(m => mark(m, 'av'));
-        findAvatarsIn(hdr).forEach(av => mark(av, 'av'));
+        hdr.querySelectorAll('img, canvas, video').forEach(m => mark(m, 'av'));
+        findAvatars(hdr).forEach(av => mark(av, 'av'));
       }
-      hdr.addEventListener('mouseenter', () => unblurAll(hdr));
-      hdr.addEventListener('mouseleave', () => reblurAll(hdr));
+      // All text-bearing spans in the header — covers name, status, and any
+      // future markup variant WA may ship. Action <button>s contain <svg>,
+      // not <span>, so icons are unaffected.
+      if (opts.headerName) blurTextSpans(hdr);
+      hookHover(hdr);
     }
 
     // ══════════════════════════════════════════════
     // PROFILE / GROUP DRAWER
     // ══════════════════════════════════════════════
     if (opts.drawer) {
-      ['section[data-testid="contact-info"]','section[data-testid="group-info"]','[data-testid="drawer-left"]'].forEach(sel => {
+      ['section[data-testid="contact-info"]', 'section[data-testid="group-info"]', '[data-testid="drawer-left"]'].forEach(sel => {
         document.querySelectorAll(sel).forEach(sec => {
-          if (sec.dataset.waRow) return;
-          sec.dataset.waRow = '1';
-          sec.querySelectorAll('span[dir="auto"]').forEach(s => { if (s.textContent.trim()) mark(s); });
-          findAvatarsIn(sec).forEach(av => mark(av, 'av'));
-          sec.addEventListener('mouseenter', () => unblurAll(sec));
-          sec.addEventListener('mouseleave', () => reblurAll(sec));
+          blurTextSpans(sec);
+          findAvatars(sec).forEach(av => mark(av, 'av'));
+          hookHover(sec);
         });
       });
     }
 
     // ══════════════════════════════════════════════
-    // MESSAGE BUBBLES — per-bubble blur + hover
+    // MESSAGE PANEL — bubbles + sender avatars
     // ══════════════════════════════════════════════
-    const chatPanel = document.querySelector('[data-testid="conversation-panel-wrapper"]');
-    if (chatPanel && (opts.msgText || opts.msgMedia)) {
-      chatPanel.querySelectorAll(
-        '[data-testid="msg-container"], ' +
-        'div[class*="message-in"], div[class*="message-out"]'
-      ).forEach(bubble => {
-        if (bubble.dataset.waBubble) return;
-        bubble.dataset.waBubble = '1';
+    const chatPanel = document.querySelector('[data-testid="conversation-panel-wrapper"]')
+                   || document.querySelector('#main [role="application"]')
+                   || document.querySelector('#main');
+    if (chatPanel) {
+      // Group sender avatars often live as siblings of the bubble inside the
+      // row. Blur every raster image in the panel so they don't slip through.
+      if (opts.msgMedia) chatPanel.querySelectorAll('img, canvas, video').forEach(m => mark(m, 'av'));
 
+      chatPanel.querySelectorAll('[data-testid="msg-container"], div[class*="message-in"], div[class*="message-out"]').forEach(bubble => {
+        // Text spans in the bubble (sender name + body).
         if (opts.msgText) {
           bubble.querySelectorAll('span[dir]').forEach(s => {
-            if (s.dataset.waBlurred) return;
-            if (!s.textContent.trim()) return;
-            mark(s);
+            if (s.textContent.trim()) mark(s);
           });
         }
-
+        // Background-image media (stickers, some attachments).
         if (opts.msgMedia) {
-          bubble.querySelectorAll('img, video').forEach(m => mark(m, 'av'));
           bubble.querySelectorAll('*').forEach(el => {
-            if (el.dataset.waBlurred) return;
-            if (el.tagName === 'IMG' || el.tagName === 'VIDEO') return;
+            if (['IMG', 'VIDEO', 'CANVAS', 'SVG'].includes(el.tagName)) return;
             const bg = getComputedStyle(el).backgroundImage;
             if (bg && bg !== 'none' && bg.includes('url')) mark(el, 'av');
           });
         }
-
-        bubble.addEventListener('mouseenter', () => unblurAll(bubble));
-        bubble.addEventListener('mouseleave', () => reblurAll(bubble));
+        if (opts.msgText || opts.msgMedia) hookHover(bubble);
       });
     }
 
     // ══════════════════════════════════════════════
     // GROUP SENDER NAMES (inside bubbles)
     // ══════════════════════════════════════════════
-    if (opts.msgText) {
-      document.querySelectorAll('[data-testid="author"]').forEach(el => {
-        if (el.dataset.waBlurred) return;
-        mark(el);
-        el.addEventListener('mouseenter', () => { el.style.filter = 'none'; });
-        el.addEventListener('mouseleave', () => { el.style.filter = BLUR_TXT; });
-      });
-    }
+    if (opts.msgText) document.querySelectorAll('[data-testid="author"]').forEach(el => mark(el));
   }
 
-  // Load options from extension storage (chrome.storage or browser.storage)
-  function loadOpts(cb) {
-    const storage = (typeof chrome !== 'undefined' && chrome.storage)
-      ? chrome.storage
-      : (typeof browser !== 'undefined' && browser.storage)
-        ? browser.storage : null;
-    if (!storage) return cb(defaults);
-    storage.sync.get('waBlurOpts', (cfg) => {
-      cb(cfg.waBlurOpts || defaults);
-    });
-  }
-
-  // Initialize — run immediately with defaults, then re-scan with saved opts
   scan();
+
+  const storage = storageApi();
+  if (storage) {
+    try {
+      storage.sync.get('waBlurOpts', res => {
+        const saved = res && res.waBlurOpts;
+        opts = normalizeOpts(saved);
+        clearBlurAll();
+        scan();
+      });
+      if (storage.onChanged && storage.onChanged.addListener) {
+        storage.onChanged.addListener((changes, area) => {
+          if (area !== 'sync' || !changes.waBlurOpts) return;
+          opts = normalizeOpts(changes.waBlurOpts.newValue);
+          clearBlurAll();
+          scan();
+        });
+      }
+    } catch (_) {}
+  }
+
+  // childList+subtree only — attribute changes (our own style writes) don't
+  // re-enter, so no feedback loop. mark() is also a no-op when the filter is
+  // already correct, which keeps interval scans cheap.
   const observer = new MutationObserver(schedule);
   observer.observe(document.body, { childList: true, subtree: true });
-  window.__waBlur = { observer, scan };
-
-  loadOpts(function (saved) {
-    const old = { ...opts };
-    opts = { ...defaults, ...saved };
-    // Only re-scan if options actually changed from defaults
-    if (JSON.stringify(opts) !== JSON.stringify(old)) {
-      document.querySelectorAll('[data-wa-blurred]').forEach(el => {
-        el.style.filter = 'none';
-        delete el.dataset.waBlurred;
-      });
-      document.querySelectorAll('[data-wa-row]').forEach(el => delete el.dataset.waRow);
-      document.querySelectorAll('[data-wa-bubble]').forEach(el => delete el.dataset.waBubble);
-      scan();
-    }
-  });
+  document.addEventListener('scroll', schedule, true);
+  const interval = setInterval(scan, 750);
+  window.__waBlur = { observer, scan, interval };
 
   console.log('🔒 WA Privacy Blur active.');
   console.log('   Sidebar: hover row → reveal names + preview + avatar');
-  console.log('   Chat: hover bubble → reveal message text');
+  console.log('   Chat: hover bubble → reveal message text + media');
   console.log('   Header / Profile drawer: hover section → reveal');
-
-  // Listen for options changes
-  const storage = (typeof chrome !== 'undefined' && chrome.storage)
-    ? chrome.storage
-    : (typeof browser !== 'undefined' && browser.storage) ? browser.storage : null;
-  if (storage && storage.onChanged) {
-    storage.onChanged.addListener(function (changes) {
-      if (changes.waBlurOpts) {
-        opts = { ...defaults, ...changes.waBlurOpts.newValue };
-        // Reset all marks so scan re-applies with new opts
-        document.querySelectorAll('[data-wa-blurred]').forEach(el => {
-          el.style.filter = 'none';
-          delete el.dataset.waBlurred;
-        });
-        document.querySelectorAll('[data-wa-row]').forEach(el => delete el.dataset.waRow);
-        document.querySelectorAll('[data-wa-bubble]').forEach(el => delete el.dataset.waBubble);
-        scan();
-      }
-    });
-  }
+  console.log('   Reload page to disable.');
 })();
