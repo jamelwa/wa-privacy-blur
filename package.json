@@ -1,6 +1,6 @@
 {
   "name": "wa-privacy-blur-extension",
-  "version": "1.3.0",
+  "version": "1.4.1",
   "description": "Browser extension that blurs WhatsApp Web content for privacy \u2014 hover to reveal.",
   "main": "blur.js",
   "scripts": {
